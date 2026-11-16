@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>美化圈 · 出图机 · 终极修复版</title>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:linear-gradient(160deg,#e8f2fa 0%,#d4e6f4 100%);font-family:'Segoe UI',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;color:#2c3e50;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:100%;background:linear-gradient(160deg,#e8f2fa 0%,#d4e6f4 100%)}
+.app-header{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:12px 16px 8px;background:rgba(255,255,255,0.5);backdrop-filter:blur(10px);border-bottom:1px solid rgba(180,210,235,0.5)}
+.app-header h1{font-size:1.1rem;font-weight:500;color:#3a5a78;display:flex;align-items:center;gap:6px}
+.app-header h1 span{background:#cfe0f0;padding:2px 10px;border-radius:40px;font-size:.6rem;color:#3a5a78;font-weight:400}
+.app-header .time{font-size:.7rem;color:#6b8aa8}
+.screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 12px 90px}
+.page{display:none}
+.page.active{display:block}
+.card{background:rgba(255,255,255,0.78);backdrop-filter:blur(12px);border-radius:22px;padding:14px;box-shadow:0 4px 20px rgba(100,150,200,0.12);border:1px solid rgba(255,255,255,0.9);margin-bottom:12px}
+.card h2{font-size:.95rem;font-weight:500;color:#4a6a88;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.native-file-btn{display:block;width:100%;padding:12px;background:rgba(220,236,250,0.8);border:2px dashed #a8c8e0;border-radius:18px;text-align:center;color:#3a5a78;font-size:.85rem;margin-bottom:12px;cursor:pointer;outline:none}
+.native-file-btn::-webkit-file-upload-button{background:#b4d0e8;color:#fff;border:none;padding:6px 16px;border-radius:20px;font-size:.8rem;margin-right:10px;cursor:pointer}
+.batch-area{background:rgba(240,248,255,0.7);border:2px dashed #b4d0e8;border-radius:18px;padding:12px;margin-bottom:12px;font-size:.8rem;color:#5a7a98;position:relative}
+.batch-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.batch-preview{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;max-height:160px;overflow-y:auto;padding:4px 0}
+.batch-preview-item{width:54px;height:54px;border-radius:12px;background:#e0ecf5;overflow:hidden;border:2px solid transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;flex-shrink:0}
+.batch-preview-item.active{border-color:#7aa8d0;box-shadow:0 0 0 2px #fff,0 0 0 4px #b4d0e8}
+.batch-preview-item img{max-width:100%;max-height:100%;object-fit:contain}
+.batch-preview-item .batch-idx{position:absolute;bottom:2px;right:3px;background:rgba(255,255,255,0.9);border-radius:4px;font-size:.55rem;color:#4a6a88;padding:0 3px}
+.batch-preview-item .batch-del{position:absolute;top:1px;right:2px;background:rgba(210,230,245,0.95);border:none;border-radius:50%;width:16px;height:16px;font-size:.6rem;color:#5a7a98;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:3}
+.batch-preview-item:hover .batch-del{display:flex}
+.batch-empty-tip{color:#8aa8c0;font-size:.75rem}
+.preview-switch{display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap}
+.preview-switch .btn{padding:6px 14px;font-size:.75rem;border-radius:30px;border:2px solid transparent}
+.preview-switch .btn.active{background:#8ab0d0;color:#fff;border-color:#8ab0d0}
+.preview-switch .btn:not(.active){background:#e0ecf5;color:#5a7a98;border-color:#c8dce8}
+.comp-preview-box{background:rgba(240,248,255,0.7);border-radius:20px;padding:8px;margin:10px 0;border:1px solid #c8dce8;display:flex;flex-direction:column;align-items:center;position:relative}
+.comp-canvas-wrapper{width:100%;display:flex;justify-content:center;align-items:center;border-radius:16px;overflow:hidden;position:relative;background:#fff}
+.comp-canvas-wrapper canvas{max-width:100%;max-height:320px;display:block;object-fit:contain;border-radius:14px}
+.preview-canvas-transparent-bg{background-image:linear-gradient(45deg,#d0e0ec 25%,transparent 25%),linear-gradient(-45deg,#d0e0ec 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#d0e0ec 75%),linear-gradient(-45deg,transparent 75%,#d0e0ec 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;background-color:#f0f8ff}
+.manual-erase-overlay{position:absolute;inset:0;cursor:crosshair;z-index:10;touch-action:none;pointer-events:none}
+.manual-erase-overlay.active{pointer-events:auto}
+.manual-erase-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:9;opacity:.5;display:none}
+.layout-toggle-row{display:flex;justify-content:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.layout-btn{background:#e0ecf5;border:2px solid #c8dce8;border-radius:40px;padding:5px 16px;font-size:.7rem;color:#5a7a98;cursor:pointer}
+.layout-btn.active{background:#8ab0d0;border-color:#8ab0d0;color:#fff}
+.preview-export-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px;padding-top:10px;border-top:1px dashed #c8dce8}
+.btn{background:rgba(220,236,250,0.8);border:none;border-radius:100px;padding:10px 18px;font-family:inherit;font-size:.8rem;color:#3a5a78;cursor:pointer;display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(255,255,255,0.8)}
+.btn:hover{background:#c8dce8}
+.btn-primary{background:#8ab0d0;color:#fff;border-color:#8ab0d0}
+.btn-primary:hover{background:#7aa0c0}
+.btn-small{padding:6px 12px;font-size:.7rem}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+.row .label{font-size:.8rem;color:#6b8aa8;min-width:70px}
+input[type="text"],input[type="number"],select,textarea{background:rgba(255,255,255,0.8);border:1px solid #c8dce8;border-radius:100px;padding:8px 16px;font-family:inherit;font-size:.8rem;color:#2c3e50;outline:none}
+textarea{border-radius:16px;resize:vertical;min-height:80px;width:100%;font-family:inherit;line-height:1.5}
+.watermark-list{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;max-height:340px;overflow-y:auto}
+.watermark-item{display:flex;flex-direction:column;gap:8px;background:rgba(240,248,255,0.7);border-radius:20px;padding:14px;border:1px solid #c8dce8}
+.wm-header{display:flex;align-items:center;gap:10px}
+.wm-thumb{width:48px;height:48px;border-radius:14px;background:#e0ecf5;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.wm-thumb img{max-width:100%;max-height:100%;object-fit:contain}
+.wm-name{flex:1;font-size:.8rem;color:#3a5a78;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wm-del-btn{background:#d4e4f0;border:none;border-radius:50%;width:28px;height:28px;color:#7a9ab8;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center}
+.wm-controls-grid{display:flex;flex-direction:column;gap:8px}
+.wm-slider-row{display:flex;align-items:center;gap:10px}
+.wm-slider-label{font-size:.7rem;color:#6b8aa8;min-width:60px;font-weight:500}
+.wm-slider-row input[type="range"]{flex:1;height:8px;-webkit-appearance:none;background:#c8dce8;border-radius:10px;outline:none}
+.wm-slider-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;background:#8ab0d0;border-radius:50%;cursor:pointer;border:3px solid #fff}
+.wm-value-badge{font-size:.7rem;color:#4a6a88;background:#d4e4f0;padding:2px 8px;border-radius:30px;min-width:44px;text-align:center}
+.wm-blend-row{display:flex;align-items:center;gap:10px}
+.wm-blend-row select{flex:1;padding:8px 12px;font-size:.75rem;border-radius:30px;max-width:180px}
+.ai-erase-btn{background:#d4e4f0;border:1px solid #c8dce8;border-radius:40px;padding:5px 12px;font-size:.7rem;color:#5a7a98;cursor:pointer}
+.ai-erase-btn.active{background:#8ab0d0;color:#fff;border-color:#8ab0d0}
+.wm-ai-row{display:flex;align-items:center;gap:8px;margin-top:2px}
+.wm-mode-row{display:flex;gap:8px;justify-content:center;margin:8px 0}
+.wm-mode-row .wm-mode-btn{background:#e0ecf5;border:2px solid #c8dce8;border-radius:40px;padding:5px 16px;font-size:.7rem;color:#5a7a98;cursor:pointer}
+.wm-mode-row .wm-mode-btn.active{background:#8ab0d0;border-color:#8ab0d0;color:#fff}
+.library-grid{display:flex;flex-wrap:wrap;gap:8px;max-height:220px;overflow-y:auto;padding:2px}
+.library-item{position:relative;width:64px;height:64px;border-radius:14px;background:#e0ecf5;border:2px solid #c8dce8;cursor:pointer;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.library-item img{max-width:70%;max-height:70%;object-fit:contain}
+.library-item .lib-name{position:absolute;bottom:0;left:0;right:0;background:rgba(255,255,255,0.85);font-size:.55rem;color:#5a7a98;text-align:center;padding:1px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.library-item .lib-del{position:absolute;top:2px;right:3px;background:rgba(210,230,245,0.9);border:none;border-radius:50%;width:16px;height:16px;font-size:.6rem;color:#5a7a98;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:2}
+.library-item:hover .lib-del{display:flex}
+.library-empty{color:#8aa8c0;font-size:.75rem;text-align:center;padding:16px 0;width:100%}
+.lib-btn-group{display:flex;gap:6px;flex-wrap:wrap}
+.lib-save-btn{background:rgba(220,236,250,0.8);border:none;border-radius:40px;padding:8px 14px;font-size:.7rem;color:#5a7a98;cursor:pointer;display:flex;align-items:center;gap:4px;border:1px solid #c8dce8}
+.lib-save-btn:hover{background:#c8dce8}
+.lib-file-btn{background:#b4d0e8;color:#fff;border:1px solid #a8c8e0}
+.lib-batch-export-btn{background:#a8c8e0;color:#fff;border:1px solid #98b8d0}
+.blur-row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.blur-row .label{font-size:.75rem;color:#6b8aa8;min-width:60px}
+.blur-row input[type="range"]{flex:1;height:8px;-webkit-appearance:none;background:#c8dce8;border-radius:10px;outline:none}
+.blur-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;background:#8ab0d0;border-radius:50%;cursor:pointer;border:3px solid #fff}
+.blur-badge{font-size:.7rem;color:#4a6a88;background:#d4e4f0;padding:2px 8px;border-radius:30px;min-width:44px;text-align:center}
+.bottom-nav{flex-shrink:0;display:flex;justify-content:space-around;align-items:center;background:rgba(255,255,255,0.7);backdrop-filter:blur(15px);border-top:1px solid rgba(180,210,235,0.5);padding:6px 4px calc(8px + env(safe-area-inset-bottom));position:fixed;bottom:0;left:0;right:0;z-index:100}
+.nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:6px 2px;border-radius:30px;cursor:pointer;color:#8aa8c0;font-size:.65rem;gap:2px;background:transparent;border:none;font-family:inherit}
+.nav-item .nav-icon{font-size:1.3rem;line-height:1}
+.nav-item.active{background:#d4e4f0;color:#3a5a78;font-weight:500}
+.nav-item span{font-size:.6rem}
+.hidden{display:none!important}
+.flex-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.font-library-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:160px;overflow-y:auto}
+.font-item{display:flex;align-items:center;gap:8px;background:rgba(240,248,255,0.7);border-radius:16px;padding:8px 12px;border:1px solid #c8dce8;font-size:.75rem;color:#3a5a78}
+.font-item .font-preview{font-size:1rem;color:#2c3e50;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.font-item .font-name{font-size:.6rem;color:#8aa8c0}
+.palette-section{margin-top:12px;border-top:1px solid #c8dce8;padding-top:12px;width:100%}
+.palette-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.palette-header h3{font-size:.85rem;font-weight:400;color:#4a6a88;display:flex;align-items:center;gap:4px}
+.palette-grid{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.color-swatch{width:34px;height:34px;border-radius:10px;border:2px solid rgba(255,255,255,0.6);cursor:pointer;box-shadow:0 1px 6px rgba(100,150,200,0.15);position:relative;flex-shrink:0}
+.color-swatch:hover{transform:scale(1.12)}
+.color-swatch.active{border:3px solid #7aa8d0;box-shadow:0 0 0 2px #fff;transform:scale(1.06)}
+.color-swatch.custom-color{background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);display:flex;align-items:center;justify-content:center;font-size:.55rem;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.color-swatch.transparent-color{background-image:linear-gradient(45deg,#ccc 25%,transparent 25%),linear-gradient(-45deg,#ccc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ccc 75%),linear-gradient(-45deg,transparent 75%,#ccc 75%);background-size:10px 10px;background-position:0 0,0 5px,5px -5px,-5px 0;background-color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#999}
+.palette-hint{font-size:.6rem;color:#8aa8c0;margin-left:2px}
+.import-status{position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:12px 24px;border-radius:30px;font-size:.85rem;z-index:9999;display:none;text-align:center;pointer-events:none}
+.paste-btn { background: #8ab0d0; color: #fff; border: none; border-radius: 30px; padding: 6px 12px; font-size: 0.7rem; margin-top: 8px; cursor: pointer; }
+
+/* ===== 隐藏 Netlify 免费版底部横幅 ===== */
+#netlify-badge, .netlify-badge, iframe[src*="netlify"], 
+[class*="netlify"], [id*="netlify"] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+</style>
+</head>
+<body>
+<div class="import-status" id="importStatus">加载中...</div>
+<div class="app">
+  <div class="app-header">
+    <h1> 美化圈 · 出图机 <span>终极修复版</span></h1>
+    <div class="time" id="clock">--:--</div>
+  </div>
+  <div class="screen" id="screenContainer">
+    <!-- 页面1：PSD -->
+    <div class="page active" id="page-psd">
+      <div class="card">
+        <h2>📦 PSD 导入</h2>
+        <input type="file" id="psdFileInput" accept=".psd" class="native-file-btn">
+        <div class="flex-row"><button class="btn btn-small" id="clearPsdLayersBtn" style="background:#d4e4f0">✕ 清空图层</button></div>
+        <div class="font-library-list" id="psdLayerList" style="max-height:220px"><span class="batch-empty-tip">尚未导入 PSD 文件</span></div>
+      </div>
+      <div class="card">
+        <h2>✒️ 署名 / 编号</h2>
+        <textarea id="signatureInput" rows="4">美化圈·小美 20250321
+美化圈·小美 20250322
+美化圈·小美 20250323</textarea>
+        <div class="number-tags" id="numberTags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+      </div>
+      <div class="card"><h2>📤 出图</h2><div class="flex-row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><button class="btn btn-primary" id="exportPngBtn">✨ 导出 PNG</button></div></div>
+    </div>
+
+    <!-- 页面2：贴膜 -->
+    <div class="page" id="page-tie">
+      <div class="card">
+        <h2>💧 贴膜（独立页）</h2>
+        <div class="comp-preview-box">
+          <div class="comp-canvas-wrapper" id="tieCanvasWrapper">
+            <canvas id="previewCanvasTie"></canvas>
+            <canvas class="manual-erase-canvas" id="tieManualCanvas"></canvas>
+            <div class="manual-erase-overlay" id="tieManualOverlay"></div>
+          </div>
+          <div class="preview-export-row"><button class="btn btn-primary" id="tieExportPngBtn">✨ PNG</button><button class="btn btn-primary" id="tieBatchExportBtn" style="background:#a8c8e0">📥 批量导出相册</button></div>
+        </div>
+        <div class="blur-row"><span class="label">🌫️ 模糊</span><input type="range" id="tieBlurRange" min="0" max="100" value="0"><span class="blur-badge" id="tieBlurBadge">0</span></div>
+        <div class="wm-mode-row">
+          <button class="btn btn-small wm-mode-btn" data-page="tie" data-mode="stretch">拉伸</button>
+          <button class="btn btn-small wm-mode-btn" data-page="tie" data-mode="tile">平铺</button>
+        </div>
+        <div class="flex-row" style="justify-content:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+          <button class="btn btn-small" id="tieAiEraseToggleBtn" style="background:#d4e4f0;border-color:#c8dce8;color:#5a7a98">✨ AI擦脸：关</button>
+          <button class="btn btn-small" id="tieManualEraseToggleBtn" style="background:#d4e4f0;border-color:#c8dce8;color:#5a7a98">🖌️ 手动擦除：关</button>
+          <button class="btn btn-small" id="tieManualEraseClearBtn" style="background:#d4e4f0;border-color:#c8dce8;color:#5a7a98">🧹 清除手动擦除</button>
+        </div>
+        <div class="flex-row" style="justify-content:center;margin-bottom:8px">
+          <span class="wm-slider-label">画笔大小</span>
+          <input type="range" id="tieBrushSize" min="4" max="160" value="40" style="flex:1;min-width:100px;height:10px;-webkit-appearance:none;background:#c8dce8;border-radius:10px;outline:none">
+          <span class="wm-value-badge" id="tieBrushSizeBadge">40</span>
+        </div>
+        <div class="batch-area" style="margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+            <span>🖼️ 批量底图 <span id="tieBatchCount">（0张）</span></span>
+            <div class="batch-btns">
+              <button class="btn btn-small batch-from-lib-btn" data-page="tie" data-kind="base" style="background:#b4d0e8;color:#fff">📚 从素材库导入</button>
+              <button class="btn btn-small batch-clear-btn" data-page="tie" data-kind="base">✕ 清空</button>
+            </div>
+          </div>
+          <input type="file" id="tieBatchInput" class="native-file-btn" accept="image/*" multiple style="margin-top:8px;padding:8px">
+          <button class="paste-btn" id="tiePasteBaseBtn" data-page="tie" data-kind="base">📋 从剪贴板读取底图</button>
+          <div class="batch-preview" id="tieBatchPreview"><span class="batch-empty-tip">尚未添加批量底图</span></div>
+        </div>
+        <div class="batch-area">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+            <span>💧 批量水印 <span id="tieWmCount">（0张）</span></span>
+            <div class="batch-btns">
+              <button class="btn btn-small batch-from-lib-btn" data-page="tie" data-kind="wm" style="background:#b4d0e8;color:#fff">📚 从素材库导入</button>
+              <button class="btn btn-small batch-clear-btn" data-page="tie" data-kind="wm">✕ 清空</button>
+            </div>
+          </div>
+          <input type="file" id="tieWmInput" class="native-file-btn" accept="image/png" multiple style="margin-top:8px;padding:8px">
+          <button class="paste-btn" id="tiePasteWmBtn" data-page="tie" data-kind="wm">📋 从剪贴板读取水印</button>
+          <div class="batch-preview" id="tieWmPreview"></div>
+        </div>
+        <div id="tieWatermarkList" class="watermark-list"></div>
+      </div>
+    </div>
+
+    <!-- 页面3：预览 -->
+    <div class="page" id="page-preview">
+      <div class="card">
+        <h2>🖼️ 预览（独立页）</h2>
+        <div class="batch-area" style="margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+            <span>🖼️ 批量底图 <span id="prevBatchCount">（0张）</span></span>
+            <div class="batch-btns">
+              <button class="btn btn-small batch-from-lib-btn" data-page="preview" data-kind="base" style="background:#b4d0e8;color:#fff">📚 从素材库导入</button>
+              <button class="btn btn-small batch-clear-btn" data-page="preview" data-kind="base">✕ 清空</button>
+            </div>
+          </div>
+          <input type="file" id="prevBatchInput" class="native-file-btn" accept="image/*" multiple style="margin-top:8px;padding:8px">
+          <button class="paste-btn" id="prevPasteBaseBtn" data-page="preview" data-kind="base">📋 从剪贴板读取底图</button>
+          <div class="batch-preview" id="prevBatchPreview"><span class="batch-empty-tip">尚未添加批量底图</span></div>
+        </div>
+        <div class="upload-area" style="margin-top:12px;position:relative;overflow:hidden">
+          <input type="file" id="prevFrameInput" accept="image/png" class="native-file-btn" style="margin-bottom:0">
+        </div>
+        <div class="flex-row"><button class="btn btn-small" id="prevClearFrameBtn" style="background:#d4e4f0">🧹 清除预览框</button></div>
+        <div class="comp-preview-box">
+          <div class="comp-canvas-wrapper" id="previewCanvasWrapper">
+            <canvas id="previewCanvasMain"></canvas>
+            <canvas class="manual-erase-canvas" id="prevManualCanvas"></canvas>
+            <div class="manual-erase-overlay" id="prevManualOverlay"></div>
+          </div>
+          <div class="layout-toggle-row"><button class="layout-btn active" id="previewFrameTopBtn">🖼️ 预览框在上</button><button class="layout-btn" id="previewFrameBottomBtn">🖼️ 底图在上</button></div>
+          <div class="preview-switch"><button class="btn" id="previewOrigBtn">🖼️ 原图</button><button class="btn active" id="previewWatermarkBtn">✨ 水印</button></div>
+          <div class="preview-export-row">
+            <button class="btn btn-primary" id="previewExportPngBtn">✨ PNG</button>
+            <button class="btn btn-primary" id="previewExportGifBtn">🎬 GIF</button>
+            <button class="btn btn-primary" id="previewExportVideoBtn" style="background:#a8c8e0">🎥 视频</button>
+            <span class="video-duration-inline"><span>⏱</span><input type="number" id="previewVideoDurationInput" value="10" min="1" max="30" step="1"> 秒</span>
+          </div>
+          <div class="preview-export-row">
+            <button class="btn btn-primary" id="previewBatchExportBtn" style="background:#a8c8e0">📥 按编号批量导出</button>
+          </div>
+          <div class="palette-section"><div class="palette-header"><h3>🎨 背景画布颜色</h3><span class="palette-hint" id="previewBgColorLabel">#ffffff</span></div><div class="palette-grid" id="previewPaletteGrid"></div></div>
+        </div>
+        <div class="batch-area">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+            <span>💧 批量水印 <span id="prevWmCount">（0张）</span></span>
+            <div class="batch-btns">
+              <button class="btn btn-small batch-from-lib-btn" data-page="preview" data-kind="wm" style="background:#b4d0e8;color:#fff">📚 从素材库导入</button>
+              <button class="btn btn-small batch-clear-btn" data-page="preview" data-kind="wm">✕ 清空</button>
+            </div>
+          </div>
+          <input type="file" id="prevWmInput" class="native-file-btn" accept="image/png" multiple style="margin-top:8px;padding:8px">
+          <button class="paste-btn" id="prevPasteWmBtn" data-page="preview" data-kind="wm">📋 从剪贴板读取水印</button>
+          <div class="batch-preview" id="prevWmPreview"></div>
+        </div>
+        <div class="wm-mode-row">
+          <button class="btn btn-small wm-mode-btn" data-page="preview" data-mode="stretch">拉伸</button>
+          <button class="btn btn-small wm-mode-btn" data-page="preview" data-mode="tile">平铺</button>
+        </div>
+        <div class="flex-row" style="justify-content:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+          <button class="btn btn-small" id="prevAiEraseToggleBtn" style="background:#d4e4f0;border-color:#c8dce8;color:#5a7a98">✨ AI擦脸：关</button>
+          <button class="btn btn-small" id="prevManualEraseToggleBtn" style="background:#d4e4f0;border-color:#c8dce8;color:#5a7a98">🖌️ 手动擦除：关</button>
+          <button class="btn btn-small" id="prevManualEraseClearBtn" style="background:#d4e4f0;border-color:#c8dce8;color:#5a7a98">🧹 清除手动擦除</button>
+        </div>
+        <div class="flex-row" style="justify-content:center;margin-bottom:8px">
+          <span class="wm-slider-label">画笔大小</span>
+          <input type="range" id="prevBrushSize" min="4" max="160" value="40" style="flex:1;min-width:100px;height:10px;-webkit-appearance:none;background:#c8dce8;border-radius:10px;outline:none">
+          <span class="wm-value-badge" id="prevBrushSizeBadge">40</span>
+        </div>
+        <div id="prevWatermarkList" class="watermark-list"></div>
+      </div>
+    </div>
+
+    <!-- 页面4：素材 -->
+    <div class="page" id="page-material">
+      <div class="card"><h2>🔤 字体库</h2>
+        <input type="file" id="fontFileInput" accept=".ttf,.otf,.woff,.woff2" multiple class="native-file-btn">
+        <div class="lib-btn-group"><button class="lib-save-btn lib-batch-export-btn" id="fontBatchExportBtn">📤 批量导出字体(ZIP)</button><button class="lib-save-btn lib-batch-export-btn" id="clearFontLibraryBtn">✕ 清空</button></div>
+        <div class="font-library-list" id="fontLibraryList"><span class="batch-empty-tip">尚未导入字体</span></div>
+      </div>
+      <div class="card"><h2>🖼️ 图片素材</h2>
+        <input type="file" id="libraryImportInput" accept="image/*" multiple class="native-file-btn">
+        <div class="lib-btn-group"><button class="lib-save-btn lib-batch-export-btn" id="batchExportLibraryBtn">📤 批量导出图片(ZIP)</button><button class="lib-save-btn lib-file-btn" id="exportLibraryBtn">💾 导出素材库JSON</button><button class="lib-save-btn lib-file-btn" id="importLibraryFileBtn">📂 导入素材库JSON</button><button class="lib-save-btn lib-batch-export-btn" id="clearLibraryBtn">✕ 清空</button></div>
+        <input type="file" id="libraryFileInput" accept=".json" style="display:none">
+        <div class="library-grid" id="libraryGrid"><div class="library-empty">暂无素材</div></div>
+      </div>
+      <div class="card"><h2>🎵 MP3 音乐</h2>
+        <input type="file" id="musicFileInput" accept="audio/mpeg,audio/mp3,.mp3" multiple class="native-file-btn">
+        <div class="lib-btn-group"><button class="lib-save-btn lib-batch-export-btn" id="musicBatchExportBtn">📤 批量导出 MP3(ZIP)</button><button class="lib-save-btn lib-batch-export-btn" id="musicClearBtn">✕ 清空</button></div>
+        <div class="library-grid" id="musicGrid"><div class="library-empty">暂无音乐</div></div>
+      </div>
+      <div class="card"><h2>💧 水印素材</h2>
+        <input type="file" id="wmLibFileInput" accept="image/png" multiple class="native-file-btn">
+        <div class="lib-btn-group"><button class="lib-save-btn lib-batch-export-btn" id="wmLibBatchExportBtn">📤 批量导出水印(ZIP)</button><button class="lib-save-btn lib-batch-export-btn" id="wmLibClearBtn">✕ 清空</button></div>
+        <div class="library-grid" id="wmLibGrid"><div class="library-empty">暂无水印</div></div>
+      </div>
+    </div>
+
+    <!-- 页面5：IPV -->
+    <div class="page" id="page-ipv">
+      <div class="card"><h2>🧩 IPV 导入</h2>
+        <input type="file" id="ipvFileInput" accept=".ipv,.json,image/png" class="native-file-btn">
+        <div class="flex-row"><button class="btn btn-small" id="ipvClearBtn" style="background:#d4e4f0">✕ 清空图层</button></div>
+        <div class="font-library-list" id="ipvLayerList" style="max-height:220px"><span class="batch-empty-tip">尚未导入</span></div>
+      </div>
+      <div class="card"><h2>✒️ IPV 署名 / 编号</h2><textarea id="ipvSignatureInput" rows="4">美化圈·IPV 20250321
+美化圈·IPV 20250322</textarea>
+        <div class="number-tags" id="ipvNumberTags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+      </div>
+      <div class="card"><h2>🖼️ IPV 预览</h2>
+        <div class="batch-area">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+            <span>🖼️ 批量底图 <span id="ipvBatchCount">（0张）</span></span>
+            <div class="batch-btns">
+              <button class="btn btn-small batch-from-lib-btn" data-page="ipv" data-kind="base" style="background:#b4d0e8;color:#fff">📚 从素材库导入</button>
+              <button class="btn btn-small batch-clear-btn" data-page="ipv" data-kind="base">✕ 清空</button>
+            </div>
+          </div>
+          <input type="file" id="ipvBatchInput" class="native-file-btn" accept="image/*" multiple style="margin-top:8px;padding:8px">
+          <button class="paste-btn" id="ipvPasteBaseBtn" data-page="ipv" data-kind="base">📋 从剪贴板读取底图</button>
+          <div class="batch-preview" id="ipvBatchPreview"><span class="batch-empty-tip">尚未添加批量底图</span></div>
+        </div>
+        <div class="comp-preview-box"><div class="comp-canvas-wrapper"><canvas id="previewCanvasIpv" width="400" height="300"></canvas></div></div>
+        <div class="flex-row" style="justify-content:center;gap:10px"><button class="btn btn-primary" id="ipvExportPngBtn">✨ 单张导出</button><button class="btn btn-primary" id="ipvBatchExportBtn" style="background:#a8c8e0">📥 批量导出</button></div>
+      </div>
+    </div>
+
+    <!-- 页面6：GMC -->
+    <div class="page" id="page-gmc">
+      <div class="card"><h2>📦 GMC 导入</h2>
+        <input type="file" id="gmcFileInput" accept=".gmc,.json,image/png" class="native-file-btn">
+        <div class="flex-row"><button class="btn btn-small" id="gmcClearBtn" style="background:#d4e4f0">✕ 清空图层</button></div>
+        <div class="font-library-list" id="gmcLayerList" style="max-height:220px"><span class="batch-empty-tip">尚未导入</span></div>
+      </div>
+      <div class="card"><h2>✒️ GMC 署名 / 编号</h2><textarea id="gmcSignatureInput" rows="4">美化圈·GMC 20250321
+美化圈·GMC 20250322</textarea>
+        <div class="number-tags" id="gmcNumberTags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+      </div>
+      <div class="card"><h2>🖼️ GMC 预览</h2>
+        <div class="batch-area">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+            <span>🖼️ 批量底图 <span id="gmcBatchCount">（0张）</span></span>
+            <div class="batch-btns">
+              <button class="btn btn-small batch-from-lib-btn" data-page="gmc" data-kind="base" style="background:#b4d0e8;color:#fff">📚 从素材库导入</button>
+              <button class="btn btn-small batch-clear-btn" data-page="gmc" data-kind="base">✕ 清空</button>
+            </div>
+          </div>
+          <input type="file" id="gmcBatchInput" class="native-file-btn" accept="image/*" multiple style="margin-top:8px;padding:8px">
+          <button class="paste-btn" id="gmcPasteBaseBtn" data-page="gmc" data-kind="base">📋 从剪贴板读取底图</button>
+          <div class="batch-preview" id="gmcBatchPreview"><span class="batch-empty-tip">尚未添加批量底图</span></div>
+        </div>
+        <div class="comp-preview-box"><div class="comp-canvas-wrapper"><canvas id="previewCanvasGmc" width="400" height="300"></canvas></div></div>
+        <div class="flex-row" style="justify-content:center;gap:10px"><button class="btn btn-primary" id="gmcExportPngBtn">✨ 单张导出</button><button class="btn btn-primary" id="gmcBatchExportBtn" style="background:#a8c8e0">📥 批量导出</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav" id="bottomNav">
+    <button class="nav-item active" data-page="psd"><span class="nav-icon">📄</span><span>PSD</span></button>
+    <button class="nav-item" data-page="tie"><span class="nav-icon">💧</span><span>贴膜</span></button>
+    <button class="nav-item" data-page="preview"><span class="nav-icon">🖼️</span><span>预览</span></button>
+    <button class="nav-item" data-page="material"><span class="nav-icon">📚</span><span>素材</span></button>
+    <button class="nav-item" data-page="ipv"><span class="nav-icon">🧩</span><span>IPV</span></button>
+    <button class="nav-item" data-page="gmc"><span class="nav-icon">📦</span><span>GMC</span></button>
+  </div>
+</div>
+
+<script>
+/* ===== 移除 Netlify 横幅（CSS 隐藏 + JS 动态删除） ===== */
+(function(){
+  function removeNetlifyBadge(){
+    var selectors = [
+      '#netlify-badge',
+      '.netlify-badge',
+      'iframe[src*="netlify"]',
+      '[class*="netlify"]',
+      '[id*="netlify"]',
+      'a[href*="netlify.com"]'
+    ];
+    selectors.forEach(function(sel){
+      try{
+        document.querySelectorAll(sel).forEach(function(el){
+          if(el && el.parentNode) el.parentNode.removeChild(el);
+        });
+      }catch(e){}
+    });
+  }
+  removeNetlifyBadge();
+  document.addEventListener('DOMContentLoaded', removeNetlifyBadge);
+  setTimeout(removeNetlifyBadge, 1000);
+  setTimeout(removeNetlifyBadge, 3000);
+  if(window.MutationObserver){
+    var observer = new MutationObserver(function(mutations){
+      mutations.forEach(function(m){
+        m.addedNodes.forEach(function(node){
+          if(node.nodeType === 1){
+            if((node.id && node.id.indexOf('netlify') >= 0) ||
+               (node.className && String(node.className).indexOf('netlify') >= 0)){
+              if(node.parentNode) node.parentNode.removeChild(node);
+            }
+          }
+        });
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+
+var $ = function(id){ return document.getElementById(id); };
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function safeFileName(s){ return String(s||'').replace(/[\\/:*?"<>|]/g,'_').replace(/\s+/g,' ').trim(); }
+function downloadDataURL(url, name){ var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+
+/* ==================== 文件读取（同步队列防卡死） ==================== */
+function showLoading(text){
+  var el = $('importStatus');
+  if(!el) return;
+  el.textContent = text || '处理中...';
+  el.style.display = 'block';
+}
+function hideLoading(){
+  var el = $('importStatus');
+  if(el) el.style.display = 'none';
+}
+
+function loadImage(src, callback){
+  var i = new Image();
+  i.crossOrigin = 'anonymous';
+  i.onload = function(){ callback(null, i); };
+  i.onerror = function(e){ callback(e); };
+  i.src = src;
+}
+function blobToDataURL(blob, callback){
+  var r = new FileReader();
+  r.onload = function(){ callback(null, r.result); };
+  r.onerror = function(e){ callback(e); };
+  r.readAsDataURL(blob);
+}
+
+function processQueue(files, onFileDone, onAllDone){
+  var total = files.length;
+  var current = 0;
+  var results = [];
+
+  if(total === 0){ onAllDone(results); return; }
+  showLoading('正在读取 0/' + total);
+
+  function next(){
+    if(current >= total){
+      hideLoading();
+      onAllDone(results);
+      return;
+    }
+
+    var file = files[current];
+    current++;
+    showLoading('正在读取 ' + current + '/' + total);
+
+    blobToDataURL(file, function(err, dataURL){
+      if(err){ next(); return; }
+
+      if(file.type.indexOf('image') === 0){
+        loadImage(dataURL, function(err2, img){
+          if(!err2){
+            var maxSide = 4096;
+            var iw = img.width, ih = img.height;
+            if(iw > maxSide || ih > maxSide){
+              var scale = Math.min(maxSide/iw, maxSide/ih);
+              var canvas = document.createElement('canvas');
+              canvas.width = Math.round(iw*scale);
+              canvas.height = Math.round(ih*scale);
+              var ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              var newDataURL = canvas.toDataURL('image/png');
+              loadImage(newDataURL, function(err3, smallImg){
+                if(!err3) results.push({file:file, dataURL:newDataURL, image:smallImg});
+                next();
+              });
+            } else {
+              results.push({file:file, dataURL:dataURL, image:img});
+              next();
+            }
+          } else { next(); }
+        });
+      } else {
+        results.push({file:file, dataURL:dataURL});
+        next();
+      }
+    });
+  }
+  next();
+}
+
+/* ==================== 剪贴板粘贴读取 ==================== */
+function handlePaste(pageKey, kind) {
+  if(navigator.clipboard && navigator.clipboard.read) {
+    navigator.clipboard.read().then(function(items) {
+      var blobs = [];
+      var promises = [];
+      for (var i = 0; i < items.length; i++) {
+        var types = items[i].types;
+        for (var j = 0; j < types.length; j++) {
+          if (types[j].indexOf('image') === 0) {
+            promises.push(items[i].getType(types[j]));
+          }
+        }
+      }
+      Promise.all(promises).then(function(files) {
+        processQueue(files, null, function(results) {
+          finishPaste(pageKey, kind, results);
+        });
+      }).catch(function(err) {
+        alert('读取剪贴板失败，请长按输入框粘贴。或使用系统的多选按钮。');
+      });
+    }).catch(function(err) {
+      alert('当前浏览器不支持直接读取剪贴板，请长按下方空白处或输入框进行粘贴。');
+    });
+  } else {
+    var textarea = document.createElement('textarea');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '50%';
+    textarea.style.left = '10%';
+    textarea.style.width = '80%';
+    textarea.style.height = '100px';
+    textarea.style.zIndex = '9999';
+    textarea.placeholder = '请长按此处粘贴图片，然后点击下方完成按钮';
+
+    var btn = document.createElement('button');
+    btn.textContent = '完成粘贴';
+    btn.style.position = 'fixed';
+    btn.style.top = '60%';
+    btn.style.left = '50%';
+    btn.style.transform = 'translateX(-50%)';
+    btn.style.zIndex = '9999';
+    btn.style.padding = '10px 20px';
+
+    document.body.appendChild(textarea);
+    document.body.appendChild(btn);
+
+    btn.onclick = function() {
+      document.body.removeChild(textarea);
+      document.body.removeChild(btn);
+      alert('旧版浏览器不支持剪贴板读取，已为您关闭面板。');
+    };
+  }
+}
+
+function finishPaste(pageKey, kind, results) {
+  if(!results.length) { alert('剪贴板中未找到图片'); return; }
+  var st = state[pageKey];
+  var added = 0;
+  results.forEach(function(item) {
+    if(kind === 'base') {
+      st.batchBases.push({name: '剪贴板图片', image: item.image, dataURL: item.dataURL});
+      added++;
+    } else {
+      st.watermarks.push({id: Date.now()+Math.random(), name: '剪贴板水印', image: item.image, dataURL: item.dataURL, scale: 100, opacity: 80, x: 50, y: 50, blend: 'source-over', aiErase: false});
+      added++;
+    }
+  });
+  if(kind === 'base') { st.activeBaseIndex = 0; refreshBatchBaseUI(pageKey); }
+  else { refreshWmUI(pageKey); }
+  drawAll();
+  alert('已从剪贴板导入 ' + added + ' 张图片');
+}
+
+/* ==================== 画布基础 ==================== */
+var MAX_RENDER_SIDE = 4096;
+
+function calcCanvasSize(img, maxSide){
+  maxSide = maxSide || MAX_RENDER_SIDE;
+  if(!img) return { width:400, height:300 };
+  var iw = img.width || img.naturalWidth || 1;
+  var ih = img.height || img.naturalHeight || 1;
+  var scale = Math.min(1, maxSide / Math.max(iw, ih));
+  return { width: Math.round(iw*scale), height: Math.round(ih*scale) };
+}
+function drawFit(ctx, img, cw, ch){
+  if(!img) return;
+  var iw = img.width || img.naturalWidth || 1;
+  var ih = img.height || img.naturalHeight || 1;
+  var sc = Math.min(cw/iw, ch/ih);
+  var dw = iw*sc, dh = ih*sc;
+  ctx.drawImage(img, (cw-dw)/2, (ch-dh)/2, dw, dh);
+}
+function getFitRect(img, cw, ch){
+  var iw = img.width || img.naturalWidth || 1;
+  var ih = img.height || img.naturalHeight || 1;
+  var sc = Math.min(cw/iw, ch/ih);
+  var dw = iw*sc, dh = ih*sc;
+  return { x:(cw-dw)/2, y:(ch-dh)/2, w:dw, h:dh };
+}
+
+/* ==================== 多宫格检测 ==================== */
+function detectGrids(frameImg) {
+  if(!frameImg) return [];
+  var cw = frameImg.width, ch = frameImg.height;
+  var canvas = document.createElement('canvas'); canvas.width = cw; canvas.height = ch;
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(frameImg, 0, 0);
+  var data = ctx.getImageData(0, 0, cw, ch).data;
+
+  var visited = new Uint8Array(cw * ch);
+  var regions = [];
+
+  function isTransparent(x, y) {
+    var idx = (y * cw + x) * 4;
+    return data[idx + 3] < 50;
+  }
+
+  function floodFill(startX, startY) {
+    var stack = [[startX, startY]];
+    var minX = startX, maxX = startX, minY = startY, maxY = startY;
+    var count = 0;
+    while (stack.length > 0) {
+      var p = stack.pop();
+      var x = p[0], y = p[1];
+      var idx = y * cw + x;
+      if (x < 0 || x >= cw || y < 0 || y >= ch) continue;
+      if (visited[idx]) continue;
+      visited[idx] = 1;
+
+      if (!isTransparent(x, y)) continue;
+
+      count++;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+
+      stack.push([x+1, y]);
+      stack.push([x-1, y]);
+      stack.push([x, y+1]);
+      stack.push([x, y-1]);
+    }
+
+    if (count > (cw * ch * 0.01)) {
+      regions.push({
+        x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, area: count
+      });
+    }
+  }
+
+  for (var y = 0; y < ch; y++) {
+    for (var x = 0; x < cw; x++) {
+      if (visited[y * cw + x]) continue;
+      if (isTransparent(x, y)) {
+        floodFill(x, y);
+      } else {
+        visited[y * cw + x] = 1;
+      }
+    }
+  }
+
+  if (regions.length > 1) {
+    regions.sort(function(a, b){ return a.y - b.y || a.x - b.x; });
+    return regions;
+  }
+  return [];
+}
+
+/* ==================== 全局状态 ==================== */
+var state = {
+  psd:      { baseImage:null, layers:[], signatures:[], watermarks:[], batchBases:[] },
+  tie:      { baseImage:null, watermarks:[], batchBases:[], blur:0, wmMode:'stretch', canvas:{width:400, height:300}, aiEraseAll:false, activeBaseIndex:0, faceMask:null, manualMask:null, manualEraseMode:false, brushSize:40 },
+  preview:  { baseImage:null, frameImage:null, grids:null, watermarks:[], previewMode:'watermark', wmMode:'stretch', batchBases:[], frameOnTop:true, bgColor:'#ffffff', canvas:{width:400, height:300}, aiEraseAll:false, activeBaseIndex:0, faceMask:null, manualMask:null, manualEraseMode:false, brushSize:40, selectedMusic:null },
+  ipv:      { baseImage:null, layers:[], signatures:[], watermarks:[], batchBases:[] },
+  gmc:      { baseImage:null, layers:[], signatures:[], watermarks:[], batchBases:[] }
+};
+
+var fontLibrary = [];
+var libraryItems = [];
+var musicItems = [];
+var wmLibraryItems = [];
+var FONT_KEY = 'beauty_font_v34';
+var LIB_KEY  = 'beauty_lib_v34';
+var MUSIC_KEY = 'beauty_music_v34';
+var WM_LIB_KEY = 'beauty_wm_lib_v34';
+
+/* ==================== 字体 ==================== */
+function injectFont(f){ var id='ff_'+f.family; if(document.getElementById(id))return; var s=document.createElement('style'); s.id=id; s.textContent='@font-face{font-family:\''+f.family+'\';src:url(\''+f.dataURL+'\');}'; document.head.appendChild(s); }
+function loadFonts(){ try{ fontLibrary=JSON.parse(localStorage.getItem(FONT_KEY)||'[]'); }catch(e){ fontLibrary=[]; } fontLibrary.forEach(injectFont); renderFontList(); }
+function saveFonts(){ try{ localStorage.setItem(FONT_KEY, JSON.stringify(fontLibrary.map(function(f){return {name:f.name,family:f.family,dataURL:f.dataURL};}))); }catch(e){} }
+function renderFontList(){
+  var el=$('fontLibraryList'); if(!el) return; el.innerHTML='';
+  if(!fontLibrary.length){ el.innerHTML='<span class="batch-empty-tip">尚未导入字体</span>'; return; }
+  fontLibrary.forEach(function(f){
+    var d=document.createElement('div'); d.className='font-item';
+    d.innerHTML='<span class="font-preview" style="font-family:\''+f.family+'\'">Aa 美化圈</span><span class="font-name">'+escapeHtml(f.name)+'</span><button class="wm-del-btn" style="width:24px;height:24px;font-size:.7rem">✕</button>';
+    d.querySelector('.wm-del-btn').onclick=function(e){ e.stopPropagation(); fontLibrary=fontLibrary.filter(function(x){return x.family!==f.family;}); saveFonts(); renderFontList(); };
+    el.appendChild(d);
+  });
+}
+function resolveFont(text){ if(!fontLibrary.length||!text) return ''; var t=text.toLowerCase(); for(var i=0;i<fontLibrary.length;i++){ if(t.indexOf(fontLibrary[i].name.toLowerCase())>=0) return fontLibrary[i].family; } return ''; }
+function parseLines(el){ return el.value.split('\n').map(function(l){return l.trim();}).filter(Boolean); }
+function renderTags(container, lines, inputEl){
+  if(!container) return;
+  container.innerHTML='';
+  lines.forEach(function(line,i){
+    var parts=line.split(/\s+/); var name=parts[0]||''; var num=parts.slice(1).join(' ')||'';
+    var tag=document.createElement('span'); tag.className='number-tag';
+    tag.innerHTML='<span>'+escapeHtml(name)+' '+escapeHtml(num)+'</span><span class="tag-remove">✕</span>';
+    tag.querySelector('.tag-remove').onclick=function(){ var newLines=lines.slice(); newLines.splice(i,1); inputEl.value=newLines.join('\n'); renderTags(container,newLines,inputEl); };
+    container.appendChild(tag);
+  });
+}
+
+/* ==================== 背景色 / 蒙版 ==================== */
+function isTransparentBg(bgColor){ return !bgColor || bgColor==='transparent'; }
+function fillCanvasBg(ctx, cw, ch, bgColor){
+  ctx.clearRect(0,0,cw,ch);
+  if(!isTransparentBg(bgColor)){ ctx.fillStyle=bgColor; ctx.fillRect(0,0,cw,ch); }
+}
+function buildFaceMask(baseImage, cw, ch){
+  if(!baseImage) return null;
+  try{
+    var off=document.createElement('canvas'); off.width=cw; off.height=ch;
+    var o=off.getContext('2d');
+    var r=getFitRect(baseImage,cw,ch);
+    o.drawImage(baseImage, r.x, r.y, r.w, r.h);
+    var srcData=o.getImageData(0,0,cw,ch).data;
+    var maskCanvas=document.createElement('canvas'); maskCanvas.width=cw; maskCanvas.height=ch;
+    var mctx=maskCanvas.getContext('2d');
+    var maskImg=mctx.createImageData(cw,ch);
+    var md=maskImg.data;
+    var any=false;
+    for(var i=0;i<srcData.length;i+=4){
+      var r0=srcData[i],g=srcData[i+1],b=srcData[i+2],a=srcData[i+3];
+      if(a<10) continue;
+      var isSkin = (r0>50 && g>30 && b>10 && r0>g && g>=b-15 && (r0-g)>8 && (r0-b)>12 && r0<252);
+      if(isSkin){ md[i]=255; md[i+1]=255; md[i+2]=255; md[i+3]=255; any=true; }
+      else { md[i+3]=0; }
+    }
+    if(any){
+      mctx.putImageData(maskImg,0,0);
+      for(var pass=0;pass<2;pass++){
+        var dilated=document.createElement('canvas'); dilated.width=cw; dilated.height=ch;
+        var dctx=dilated.getContext('2d');
+        dctx.drawImage(maskCanvas,0,0);
+        dctx.globalCompositeOperation='destination-out';
+        dctx.drawImage(maskCanvas, -1, -1);
+        dctx.drawImage(maskCanvas, 1, 1);
+        dctx.drawImage(maskCanvas, -1, 1);
+        dctx.drawImage(maskCanvas, 1, -1);
+        mctx.clearRect(0,0,cw,ch);
+        mctx.drawImage(dilated,0,0);
+        mctx.drawImage(maskCanvas,0,0);
+      }
+    } else {
+      mctx.fillStyle='#fff';
+      mctx.beginPath();
+      mctx.ellipse(cw/2, ch/2, cw*0.22, ch*0.30, 0, 0, Math.PI*2);
+      mctx.fill();
+    }
+    return maskCanvas;
+  }catch(e){ return null; }
+}
+
+/* ==================== 水印绘制 ==================== */
+function getWmDisplaySize(wm, cw, ch){
+  var img = wm.image;
+  var iw = img.width || img.naturalWidth || 1;
+  var ih = img.height || img.naturalHeight || 1;
+  var scale = (wm.scale || 100) / 100;
+  var dw = cw * scale;
+  var dh = dw * (ih / iw);
+  if(dh > ch * scale){
+    dh = ch * scale;
+    dw = dh * (iw / ih);
+  }
+  return { w: dw, h: dh, iw: iw, ih: ih };
+}
+function drawWmWithErase(ctx, wm, x, y, w, h, faceMask, forceAiErase, manualMask, offsetX, offsetY){
+  if(!wm.image) return;
+  var useAiErase = forceAiErase || wm.aiErase;
+  var useManual = !!manualMask;
+
+  var dx = offsetX || 0;
+  var dy = offsetY || 0;
+
+  ctx.save();
+  ctx.globalAlpha = (wm.opacity||80)/100;
+  ctx.globalCompositeOperation = wm.blend||'source-over';
+  if((useAiErase && faceMask) || useManual){
+    var temp=document.createElement('canvas');
+    temp.width=ctx.canvas.width; temp.height=ctx.canvas.height;
+    var tctx=temp.getContext('2d');
+    tctx.drawImage(wm.image, x+dx, y+dy, w, h);
+    tctx.globalCompositeOperation='destination-out';
+    if(useAiErase && faceMask) tctx.drawImage(faceMask, 0, 0);
+    if(useManual) tctx.drawImage(manualMask, 0, 0);
+    ctx.drawImage(temp, 0, 0);
+  } else {
+    ctx.drawImage(wm.image, x+dx, y+dy, w, h);
+  }
+  ctx.restore();
+}
+function drawAllWm(ctx, wms, cw, ch, mode, faceMask, forceAiErase, manualMask, offsetX, offsetY){
+  wms.forEach(function(wm){
+    if(!wm.image) return;
+    var size = getWmDisplaySize(wm, cw, ch);
+    var w = size.w, h = size.h;
+    if(mode==='tile'){
+      var stepX = w; 
+      var stepY = h;
+      for(var ty = 0; ty < ch; ty += stepY){
+        for(var tx = 0; tx < cw; tx += stepX){
+          drawWmWithErase(ctx, wm, tx, ty, w, h, faceMask, forceAiErase, manualMask, offsetX, offsetY);
+        }
+      }
+    } else {
+      var cx = (wm.x||50)/100 * cw;
+      var cy = (wm.y||50)/100 * ch;
+      var x = cx - w/2;
+      var y = cy - h/2;
+      drawWmWithErase(ctx, wm, x, y, w, h, faceMask, forceAiErase, manualMask, offsetX, offsetY);
+    }
+  });
+}
+
+/* ==================== 手动擦除 ==================== */
+function createManualMask(w, h){ var c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+function ensureManualMask(pageKey){
+  var st=state[pageKey];
+  if(!st.manualMask || st.manualMask.width!==st.canvas.width || st.manualMask.height!==st.canvas.height){
+    st.manualMask = createManualMask(st.canvas.width, st.canvas.height);
+  }
+  return st.manualMask;
+}
+function paintManualMask(pageKey, x, y, size){
+  var st=state[pageKey];
+  var mask=ensureManualMask(pageKey);
+  var ctx=mask.getContext('2d');
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='#fff';
+  ctx.beginPath();
+  ctx.arc(x, y, size/2, 0, Math.PI*2);
+  ctx.fill();
+}
+function clearManualMask(pageKey){
+  var st=state[pageKey];
+  if(st.manualMask){ st.manualMask.getContext('2d').clearRect(0,0,st.manualMask.width, st.manualMask.height); }
+  var vis = pageKey==='tie'?$('tieManualCanvas'):$('prevManualCanvas');
+  if(vis){ vis.getContext('2d').clearRect(0,0,vis.width,vis.height); }
+  drawAll();
+}
+function bindManualEraseOverlay(pageKey, overlayId, mainCanvasId, visCanvasId){
+  var overlay=$(overlayId); var vis=$(visCanvasId); var main=$(mainCanvasId);
+  if(!overlay || !vis || !main) return;
+  var painting=false;
+  function syncVisSize(){ if(vis.width!==main.width || vis.height!==main.height){ vis.width=main.width; vis.height=main.height; } }
+  function getPos(e){
+    var rect=main.getBoundingClientRect(); var clientX, clientY;
+    if(e.touches && e.touches.length){ clientX=e.touches[0].clientX; clientY=e.touches[0].clientY; }
+    else { clientX=e.clientX; clientY=e.clientY; }
+    return { x:(clientX-rect.left)*(main.width/rect.width), y:(clientY-rect.top)*(main.height/rect.height) };
+  }
+  function onDown(e){
+    if(!state[pageKey].manualEraseMode) return;
+    e.preventDefault(); syncVisSize(); painting=true;
+    var p=getPos(e);
+    var vctx=vis.getContext('2d');
+    vctx.globalCompositeOperation='source-over';
+    vctx.fillStyle='rgba(138,176,208,0.45)';
+    vctx.beginPath(); vctx.arc(p.x, p.y, state[pageKey].brushSize/2, 0, Math.PI*2); vctx.fill();
+    paintManualMask(pageKey, p.x, p.y, state[pageKey].brushSize);
+  }
+  function onMove(e){
+    if(!painting) return;
+    e.preventDefault();
+    var p=getPos(e);
+    var vctx=vis.getContext('2d');
+    vctx.fillStyle='rgba(138,176,208,0.45)';
+    vctx.beginPath(); vctx.arc(p.x, p.y, state[pageKey].brushSize/2, 0, Math.PI*2); vctx.fill();
+    paintManualMask(pageKey, p.x, p.y, state[pageKey].brushSize);
+  }
+  function onUp(){
+    if(!painting) return;
+    painting=false;
+    if(pageKey==='tie') drawTie(); else drawPreview();
+  }
+  overlay.addEventListener('mousedown', onDown);
+  overlay.addEventListener('mousemove', onMove);
+  overlay.addEventListener('mouseup', onUp);
+  overlay.addEventListener('mouseleave', onUp);
+  overlay.addEventListener('touchstart', onDown, {passive:false});
+  overlay.addEventListener('touchmove', onMove, {passive:false});
+  overlay.addEventListener('touchend', onUp);
+  overlay.addEventListener('touchcancel', onUp);
+}
+
+/* ==================== 署名 & 底图 ==================== */
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    if(typeof r==='number')r=[r];
+    var tl=r[0],tr=r.length===1?r[0]:r[1],br=r.length===1?r[0]:r[2]||r[1],bl=r.length===1?r[0]:r[3]||r[1];
+    this.moveTo(x+tl,y); this.lineTo(x+w-tr,y); this.quadraticCurveTo(x+w,y,x+w,y+tr);
+    this.lineTo(x+w,y+h-br); this.quadraticCurveTo(x+w,y+h,x+w-br,y+h);
+    this.lineTo(x+bl,y+h); this.quadraticCurveTo(x,y+h,x,y+h-bl);
+    this.lineTo(x,y+tl); this.quadraticCurveTo(x,y,x+tl,y); this.closePath(); return this;
+  };
+}
+function drawSignature(ctx, text, cw, ch){
+  if(!text) return;
+  var parts=text.trim().split(/\s+/);
+  var name=parts[0]||'';
+  var num=parts.slice(1).join(' ')||'';
+  var family=resolveFont(text);
+  var font=family?('\''+family+'\',"Segoe UI","PingFang SC",sans-serif'):'"Segoe UI","PingFang SC",sans-serif';
+  ctx.save();
+  var boxH = Math.max(54, ch*0.10);
+  var boxW = Math.max(cw-40, cw*0.5);
+  var grad=ctx.createLinearGradient(0,ch-boxH-16,cw,ch-10);
+  grad.addColorStop(0,'rgba(138,176,208,0.7)');
+  grad.addColorStop(1,'rgba(180,208,232,0.7)');
+  ctx.fillStyle=grad;
+  ctx.beginPath();
+  ctx.roundRect((cw-boxW)/2, ch-boxH-16, boxW, boxH, 20);
+  ctx.fill();
+  var fs = Math.max(16, Math.round(boxH*0.32));
+  ctx.fillStyle='#2c3e50';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  if(name){ ctx.font='bold '+fs+'px '+font; ctx.fillText(name, cw/2, ch-boxH+boxH*0.35); }
+  if(num){ ctx.font=Math.round(fs*0.8)+'px '+font; ctx.fillStyle='#4a6a88'; ctx.fillText(num, cw/2, ch-boxH+boxH*0.7); }
+  ctx.restore();
+}
+function drawBlurBase(ctx, img, cw, ch, blur, bgColor){
+  if(!isTransparentBg(bgColor)){
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0,0,cw,ch);
+  } else {
+    ctx.clearRect(0,0,cw,ch);
+  }
+  if(!img) return;
+  if(!blur){ drawFit(ctx, img, cw, ch); return; }
+  var off=document.createElement('canvas'); off.width=cw; off.height=ch;
+  var o=off.getContext('2d'); drawFit(o,img,cw,ch);
+  ctx.save();
+  try{ ctx.filter='blur('+(blur/100*20)+'px)'; ctx.drawImage(off,0,0); }
+  catch(e){ ctx.drawImage(off,0,0); }
+  ctx.restore();
+}
+function updateTieCanvasSize(){
+  var c=$('previewCanvasTie'); var st=state.tie;
+  var img = st.baseImage || (st.batchBases[st.activeBaseIndex] && st.batchBases[st.activeBaseIndex].image);
+  var size = calcCanvasSize(img, MAX_RENDER_SIDE);
+  if(c.width!==size.width || c.height!==size.height){
+    c.width=size.width; c.height=size.height;
+    st.manualMask = createManualMask(size.width, size.height);
+  }
+  st.canvas=size;
+  st.faceMask = img ? buildFaceMask(img, size.width, size.height) : null;
+}
+function updatePreviewCanvasSize(){
+  var c=$('previewCanvasMain'); var st=state.preview;
+  var img = st.baseImage || (st.batchBases[st.activeBaseIndex] && st.batchBases[st.activeBaseIndex].image);
+  if(!img && st.frameImage) img = st.frameImage;
+  var size = calcCanvasSize(img, MAX_RENDER_SIDE);
+  if(c.width!==size.width || c.height!==size.height){
+    c.width=size.width; c.height=size.height;
+    st.manualMask = createManualMask(size.width, size.height);
+  }
+  st.canvas=size;
+  st.faceMask = img ? buildFaceMask(img, size.width, size.height) : null;
+}
+function syncActiveBatchBase(pageKey){
+  var st=state[pageKey]; if(!st||!st.batchBases) return;
+  if(st.activeBaseIndex==null||st.activeBaseIndex<0||st.activeBaseIndex>=st.batchBases.length) st.activeBaseIndex=st.batchBases.length?0:-1;
+  st.baseImage = st.batchBases.length && st.batchBases[st.activeBaseIndex] ? st.batchBases[st.activeBaseIndex].image : null;
+}
+
+function drawTie(offsetX, offsetY){
+  syncActiveBatchBase('tie');
+  updateTieCanvasSize();
+  var c=$('previewCanvasTie'); var ctx=c.getContext('2d'); var w=c.width, h=c.height;
+  ctx.fillStyle='#f0f4f8'; ctx.fillRect(0,0,w,h);
+  drawBlurBase(ctx, state.tie.baseImage, w, h, state.tie.blur);
+  drawAllWm(ctx, state.tie.watermarks, w, h, state.tie.wmMode, state.tie.faceMask, state.tie.aiEraseAll, state.tie.manualMask, offsetX, offsetY);
+  if(state.psd.signatures.length) drawSignature(ctx, state.psd.signatures[0], w, h);
+}
+function drawPreview(offsetX, offsetY){
+  syncActiveBatchBase('preview');
+  updatePreviewCanvasSize();
+  var c=$('previewCanvasMain'); var ctx=c.getContext('2d'); var w=c.width, h=c.height;
+  var st=state.preview;
+  var wrapper=$('previewCanvasWrapper');
+  if(wrapper) wrapper.classList.toggle('preview-canvas-transparent-bg', isTransparentBg(st.bgColor));
+  fillCanvasBg(ctx, w, h, st.bgColor);
+
+  var frameRect = st.frameImage ? getFitRect(st.frameImage, w, h) : null;
+  var baseImg = st.baseImage;
+  var grids = st.grids || [];
+
+  if (st.frameOnTop) {
+    if (st.frameImage && grids.length > 0 && st.batchBases.length > 0) {
+      grids.forEach(function(cell, i) {
+        var item = st.batchBases[i % st.batchBases.length];
+        if(!item || !item.image) return;
+        var img = item.image;
+        var cx = frameRect.x + cell.x + cell.w / 2;
+        var cy = frameRect.y + cell.y + cell.h / 2;
+
+        var iw = img.width, ih = img.height;
+        var sc = Math.min(cell.w / iw, cell.h / ih);
+        var dw = iw * sc;
+        var dh = ih * sc;
+        ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
+      });
+    } else if (st.frameImage && baseImg) {
+      var iw = baseImg.width, ih = baseImg.height;
+      var sc = Math.min(frameRect.w / iw, frameRect.h / ih);
+      var dw = iw * sc, dh = ih * sc;
+      ctx.drawImage(baseImg, frameRect.x + (frameRect.w - dw)/2, frameRect.y + (frameRect.h - dh)/2, dw, dh);
+    } else if (baseImg) {
+      drawFit(ctx, baseImg, w, h);
+    }
+
+    if (st.frameImage) drawFit(ctx, st.frameImage, w, h);
+  } else {
+    if(st.frameImage) drawFit(ctx, st.frameImage, w, h);
+
+    if (st.frameImage && grids.length > 0 && st.batchBases.length > 0) {
+      grids.forEach(function(cell, i) {
+        var item = st.batchBases[i % st.batchBases.length];
+        if(!item || !item.image) return;
+        var img = item.image;
+        var cx = frameRect.x + cell.x + cell.w / 2;
+        var cy = frameRect.y + cell.y + cell.h / 2;
+
+        var iw = img.width, ih = img.height;
+        var sc = Math.min(cell.w / iw, cell.h / ih);
+        var dw = iw * sc;
+        var dh = ih * sc;
+        ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
+      });
+    } else if (st.frameImage && baseImg) {
+      var iw = baseImg.width, ih = baseImg.height;
+      var sc = Math.min(frameRect.w / iw, frameRect.h / ih);
+      var dw = iw * sc, dh = ih * sc;
+      ctx.drawImage(baseImg, frameRect.x + (frameRect.w - dw)/2, frameRect.y + (frameRect.h - dh)/2, dw, dh);
+    } else if (baseImg) {
+      drawFit(ctx, baseImg, w, h);
+    }
+  }
+
+  if(st.previewMode==='watermark'){
+    drawAllWm(ctx, st.watermarks, w, h, st.wmMode, st.faceMask, st.aiEraseAll, st.manualMask, offsetX, offsetY);
+  }
+  if(state.psd.signatures.length) drawSignature(ctx, state.psd.signatures[0], w, h);
+}
+function drawIpv(){
+  var c=$('previewCanvasIpv'); var ctx=c.getContext('2d'); var w=c.width, h=c.height;
+  ctx.clearRect(0,0,w,h);
+  drawBlurBase(ctx, state.ipv.baseImage, w, h, 0);
+  state.ipv.layers.forEach(function(l){ if(l.image) drawFit(ctx,l.image,w,h); });
+  drawAllWm(ctx, state.ipv.watermarks, w, h, 'stretch');
+  if(state.ipv.signatures.length) drawSignature(ctx, state.ipv.signatures[0], w, h);
+}
+function drawGmc(){
+  var c=$('previewCanvasGmc'); var ctx=c.getContext('2d'); var w=c.width, h=c.height;
+  ctx.clearRect(0,0,w,h);
+  drawBlurBase(ctx, state.gmc.baseImage, w, h, 0);
+  state.gmc.layers.forEach(function(l){ if(l.image) drawFit(ctx,l.image,w,h); });
+  drawAllWm(ctx, state.gmc.watermarks, w, h, 'stretch');
+  if(state.gmc.signatures.length) drawSignature(ctx, state.gmc.signatures[0], w, h);
+}
+function drawAll(){ drawTie(); drawPreview(); drawIpv(); drawGmc(); }
+
+/* ==================== 渲染UI ==================== */
+function renderBatchBasePreview(elId, baseArr, onChange, activeIndex){
+  var el=$(elId); if(!el) return; el.innerHTML='';
+  if(!baseArr.length){ el.innerHTML='<span class="batch-empty-tip">尚未添加批量底图</span>'; return; }
+  baseArr.forEach(function(item,i){
+    var d=document.createElement('div'); d.className='batch-preview-item'+(activeIndex===i?' active':'');
+    var img=document.createElement('img'); img.src=item.dataURL||''; d.appendChild(img);
+    var idx=document.createElement('span'); idx.className='batch-idx'; idx.textContent=String(i+1); d.appendChild(idx);
+    var del=document.createElement('button'); del.className='batch-del'; del.textContent='✕';
+    del.onclick=function(ev){ ev.stopPropagation(); baseArr.splice(i,1); if(activeIndex>=baseArr.length) activeIndex=baseArr.length-1; onChange(activeIndex); };
+    d.appendChild(del);
+    d.onclick=function(){ onChange(i); };
+    el.appendChild(d);
+  });
+}
+function renderWmPreview(elId, wmArr, onChange){
+  var el=$(elId); if(!el) return; el.innerHTML='';
+  if(!wmArr.length){ el.innerHTML='<span class="batch-empty-tip">暂无</span>'; return; }
+  wmArr.forEach(function(wm,i){
+    var d=document.createElement('div'); d.className='batch-preview-item';
+    var img=document.createElement('img'); img.src=wm.dataURL||''; d.appendChild(img);
+    var idx=document.createElement('span'); idx.className='batch-idx'; idx.textContent=String(i+1); d.appendChild(idx);
+    var del=document.createElement('button'); del.className='batch-del'; del.textContent='✕';
+    del.onclick=function(ev){ ev.stopPropagation(); wmArr.splice(i,1); onChange(); };
+    d.appendChild(del); el.appendChild(d);
+  });
+}
+function createWmItem(wm, onChange){
+  var d=document.createElement('div'); d.className='watermark-item';
+  var thumb=document.createElement('img'); thumb.src=wm.dataURL||'';
+  d.innerHTML='<div class="wm-header"><div class="wm-thumb"></div><div class="wm-name">'+escapeHtml(wm.name||'水印')+'</div><button class="wm-del-btn">✕</button></div><div class="wm-ai-row"><button class="ai-erase-btn">✨ AI擦脸</button><span class="ai-erase-tip">只擦掉覆盖在不规则面部上的水印</span></div><div class="wm-controls-grid"><div class="wm-slider-row"><span class="wm-slider-label">缩放</span><input type="range" min="10" max="300" value="'+(wm.scale||100)+'"><span class="wm-value-badge">'+(wm.scale||100)+'%</span></div><div class="wm-slider-row"><span class="wm-slider-label">透明度</span><input type="range" min="0" max="100" value="'+(wm.opacity||80)+'"><span class="wm-value-badge">'+(wm.opacity||80)+'%</span></div><div class="wm-slider-row"><span class="wm-slider-label">水平</span><input type="range" min="0" max="100" value="'+(wm.x||50)+'"><span class="wm-value-badge">'+(wm.x||50)+'%</span></div><div class="wm-slider-row"><span class="wm-slider-label">垂直</span><input type="range" min="0" max="100" value="'+(wm.y||50)+'"><span class="wm-value-badge">'+(wm.y||50)+'%</span></div><div class="wm-blend-row"><span class="wm-slider-label">混合</span><select></select></div></div>';
+  d.querySelector('.wm-thumb').appendChild(thumb);
+  var ranges=d.querySelectorAll('input[type="range"]');
+  ranges.forEach(function(r,i){
+    r.oninput=function(){
+      var val=+r.value; var badge=r.nextElementSibling;
+      if(i===0){ wm.scale=val; badge.textContent=val+'%'; }
+      if(i===1){ wm.opacity=val; badge.textContent=val+'%'; }
+      if(i===2){ wm.x=val; badge.textContent=val+'%'; }
+      if(i===3){ wm.y=val; badge.textContent=val+'%'; }
+      onChange();
+    };
+  });
+  var sel=d.querySelector('.wm-blend-row select');
+  var opts=[{v:'source-over',t:'正常'},{v:'multiply',t:'正片叠底'},{v:'screen',t:'滤色'},{v:'overlay',t:'叠加'},{v:'soft-light',t:'柔光'}];
+  opts.forEach(function(o){ var op=document.createElement('option'); op.value=o.v; op.textContent=o.t; sel.appendChild(op); });
+  sel.onchange=function(){ wm.blend=sel.value; onChange(); };
+  var aiBtn=d.querySelector('.ai-erase-btn');
+  if(wm.aiErase) aiBtn.classList.add('active');
+  aiBtn.onclick=function(){ wm.aiErase=!wm.aiErase; aiBtn.classList.toggle('active',wm.aiErase); onChange(); };
+  d.querySelector('.wm-del-btn').onclick=function(){ onChange('remove'); };
+  return d;
+}
+
+/* ==================== 批量导入逻辑 ==================== */
+function handleBaseFiles(inputEl, pageKey){
+  var files=Array.prototype.slice.call(inputEl.files||[]);
+  if(!files.length) return;
+  var st=state[pageKey];
+
+  processQueue(files, null, function(results){
+    results.forEach(function(item){
+      st.batchBases.push({name:item.file.name, image:item.image, dataURL:item.dataURL});
+    });
+    st.activeBaseIndex=0;
+    refreshBatchBaseUI(pageKey); drawAll();
+    inputEl.value='';
+  });
+}
+function handleWmFiles(inputEl, pageKey){
+  var files=Array.prototype.slice.call(inputEl.files||[]);
+  if(!files.length) return;
+  var st=state[pageKey];
+
+  processQueue(files, null, function(results){
+    results.forEach(function(item){
+      st.watermarks.push({id:Date.now()+Math.random(), name:item.file.name.replace(/\.[^.]+$/,''), image:item.image, dataURL:item.dataURL, scale:100, opacity:80, x:50, y:50, blend:'source-over', aiErase:false});
+    });
+    refreshWmUI(pageKey); drawAll();
+    inputEl.value='';
+  });
+}
+function refreshBatchBaseUI(pageKey){
+  var st=state[pageKey];
+  var elMap={tie:'tieBatchPreview', preview:'prevBatchPreview', ipv:'ipvBatchPreview', gmc:'gmcBatchPreview'};
+  var countMap={tie:'tieBatchCount', preview:'prevBatchCount', ipv:'ipvBatchCount', gmc:'gmcBatchCount'};
+  if($(countMap[pageKey])) $(countMap[pageKey]).textContent='（'+st.batchBases.length+'张）';
+  renderBatchBasePreview(elMap[pageKey], st.batchBases, function(index){
+    st.activeBaseIndex=index;
+    st.baseImage=st.batchBases[index]?st.batchBases[index].image:null;
+    st.faceMask = st.baseImage ? buildFaceMask(st.baseImage, st.canvas.width, st.canvas.height) : null;
+    refreshBatchBaseUI(pageKey); drawAll();
+  }, st.activeBaseIndex);
+}
+function refreshWmUI(pageKey){
+  var st=state[pageKey];
+  var previewMap={tie:'tieWmPreview', preview:'prevWmPreview'};
+  var listMap={tie:'tieWatermarkList', preview:'prevWatermarkList'};
+  var countMap={tie:'tieWmCount', preview:'prevWmCount'};
+  if($(countMap[pageKey])) $(countMap[pageKey]).textContent='（'+st.watermarks.length+'张）';
+  if($(previewMap[pageKey])) renderWmPreview(previewMap[pageKey], st.watermarks, function(){ refreshWmUI(pageKey); drawAll(); });
+  var listEl=$(listMap[pageKey]); if(listEl){
+    listEl.innerHTML='';
+    st.watermarks.forEach(function(wm,i){
+      var item=createWmItem(wm, function(action){
+        if(action==='remove'){ st.watermarks.splice(i,1); refreshWmUI(pageKey); drawAll(); }
+        else drawAll();
+      });
+      listEl.appendChild(item);
+    });
+    if(!st.watermarks.length) listEl.innerHTML='<div class="batch-empty-tip">暂无水印</div>';
+  }
+}
+
+/* ==================== 素材库持久化 ==================== */
+function renderLibraryGrid(){ var el=$('libraryGrid'); if(!el) return; el.innerHTML=''; if(!libraryItems.length){ el.innerHTML='<div class="library-empty">暂无素材</div>'; return; } libraryItems.forEach(function(item,i){ var d=document.createElement('div'); d.className='library-item'; var img=document.createElement('img'); img.src=item.dataURL; d.appendChild(img); var n=document.createElement('div'); n.className='lib-name'; n.textContent=item.name; d.appendChild(n); var del=document.createElement('button'); del.className='lib-del'; del.textContent='✕'; del.onclick=function(ev){ ev.stopPropagation(); libraryItems.splice(i,1); saveLibrary(); renderLibraryGrid(); }; d.appendChild(del); el.appendChild(d); }); }
+function saveLibrary(){ try{ localStorage.setItem(LIB_KEY, JSON.stringify(libraryItems.map(function(i){return {name:i.name,dataURL:i.dataURL};}))); }catch(e){} }
+function loadLibrary(){ try{ libraryItems=JSON.parse(localStorage.getItem(LIB_KEY)||'[]'); libraryItems.forEach(function(it){ loadImage(it.dataURL, function(err, img){ if(!err) it.image=img; }); }); }catch(e){ libraryItems=[]; } renderLibraryGrid(); }
+function renderWmLibGrid(){ var el=$('wmLibGrid'); if(!el) return; el.innerHTML=''; if(!wmLibraryItems.length){ el.innerHTML='<div class="library-empty">暂无水印</div>'; return; } wmLibraryItems.forEach(function(item,i){ var d=document.createElement('div'); d.className='library-item'; var img=document.createElement('img'); img.src=item.dataURL; d.appendChild(img); var n=document.createElement('div'); n.className='lib-name'; n.textContent=item.name; d.appendChild(n); var del=document.createElement('button'); del.className='lib-del'; del.textContent='✕'; del.onclick=function(ev){ ev.stopPropagation(); wmLibraryItems.splice(i,1); saveWmLib(); renderWmLibGrid(); }; d.appendChild(del); el.appendChild(d); }); }
+function saveWmLib(){ try{ localStorage.setItem(WM_LIB_KEY, JSON.stringify(wmLibraryItems.map(function(i){return {name:i.name,dataURL:i.dataURL};}))); }catch(e){} }
+function loadWmLib(){ try{ wmLibraryItems=JSON.parse(localStorage.getItem(WM_LIB_KEY)||'[]'); wmLibraryItems.forEach(function(it){ loadImage(it.dataURL, function(err, img){ if(!err) it.image=img; }); }); }catch(e){ wmLibraryItems=[]; } renderWmLibGrid(); }
+function renderMusicGrid(){ var el=$('musicGrid'); if(!el) return; el.innerHTML=''; if(!musicItems.length){ el.innerHTML='<div class="library-empty">暂无音乐</div>'; return; } musicItems.forEach(function(item,i){ var d=document.createElement('div'); d.className='library-item'; var icon=document.createElement('div'); icon.textContent='🎵'; icon.style.fontSize='1.5rem'; d.appendChild(icon); var n=document.createElement('div'); n.className='lib-name'; n.textContent=item.name; d.appendChild(n); var del=document.createElement('button'); del.className='lib-del'; del.textContent='✕'; del.onclick=function(ev){ ev.stopPropagation(); musicItems.splice(i,1); saveMusic(); renderMusicGrid(); }; d.appendChild(del); el.appendChild(d); }); }
+function saveMusic(){ try{ localStorage.setItem(MUSIC_KEY, JSON.stringify(musicItems.map(function(i){return {name:i.name,dataURL:i.dataURL};}))); }catch(e){} }
+function loadMusic(){ try{ musicItems=JSON.parse(localStorage.getItem(MUSIC_KEY)||'[]'); }catch(e){ musicItems=[]; } renderMusicGrid(); }
+
+/* ==================== 导出ZIP ==================== */
+function exportToZip(items, filename, ext){
+  if(!items.length){ alert('没有可导出的文件'); return; }
+  if(typeof JSZip==='undefined'){ alert('ZIP 库未加载，请检查网络'); return; }
+  var zip=new JSZip();
+  items.forEach(function(item,i){
+    var base64=item.dataURL.split(',')[1];
+    var name=safeFileName(item.name||('file'+(i+1)))+(ext||'.png');
+    zip.file(name, base64, {base64:true});
+  });
+  zip.generateAsync({type:'blob'}).then(function(blob){
+    downloadDataURL(URL.createObjectURL(blob), filename+'_'+Date.now()+'.zip');
+  }).catch(function(e){ alert('导出失败：'+e.message); });
+}
+
+/* ==================== 启动 ==================== */
+function initClock(){ var t=$('clock'); function upd(){ var d=new Date(); t.textContent=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); } upd(); setInterval(upd,30000); }
+function bindNav(){
+  $('bottomNav').addEventListener('click', function(e){
+    var item=e.target.closest('.nav-item'); if(!item) return;
+    var page=item.dataset.page;
+    document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');}); item.classList.add('active');
+    document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+    var target=$('page-'+page); if(target){ target.classList.add('active'); $('screenContainer').scrollTop=0; }
+  });
+}
+
+function start(){
+  initClock();
+  bindNav();
+  loadFonts();
+  loadLibrary(); loadWmLib(); loadMusic();
+  renderTags($('numberTags'), parseLines($('signatureInput')), $('signatureInput'));
+  renderTags($('ipvNumberTags'), parseLines($('ipvSignatureInput')), $('ipvSignatureInput'));
+  renderTags($('gmcNumberTags'), parseLines($('gmcSignatureInput')), $('gmcSignatureInput'));
+  drawAll();
+}
+start();
+})();
+</script>
+</body>
+</html>
