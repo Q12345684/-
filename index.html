@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>美化圈 · 出图机 · 多宫格完美版</title>
+<title>美化圈 · 出图机 · 完美挖空版</title>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js"></script>
 <style>
@@ -125,7 +125,7 @@ textarea{border-radius:16px;resize:vertical;min-height:80px;width:100%;font-fami
 <div class="import-status" id="importStatus">加载中...</div>
 <div class="app">
   <div class="app-header">
-    <h1> 美化圈 · 出图机 <span>多宫格完美版</span></h1>
+    <h1> 美化圈 · 出图机 <span>完美挖空版</span></h1>
     <div class="time" id="clock">--:--</div>
   </div>
   <div class="screen" id="screenContainer">
@@ -429,7 +429,6 @@ function blobToDataURL(blob, callback){
   r.readAsDataURL(blob);
 }
 
-// 核心修复：队列化处理，并且每处理完一张就强制刷新画面
 function processQueue(files, pageKey, kind, onAllDone){
   var total = files.length;
   var current = 0;
@@ -441,10 +440,9 @@ function processQueue(files, pageKey, kind, onAllDone){
   function next(){
     if(current >= total){
       hideLoading();
-      // 全部完成后，最终强制重绘一次
-      drawAll();
-      refreshBatchBaseUI(pageKey);
-      refreshWmUI(pageKey);
+      drawAll(); // 全部完成后重绘
+      if(kind === 'base') refreshBatchBaseUI(pageKey);
+      else refreshWmUI(pageKey);
       onAllDone();
       return;
     }
@@ -459,7 +457,6 @@ function processQueue(files, pageKey, kind, onAllDone){
       if(file.type.indexOf('image') === 0 || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name)){
         loadImage(dataURL, function(err2, img){
           if(!err2){
-            // 缩小图片防内存爆炸
             var maxSide = 2000;
             var iw = img.width, ih = img.height;
             var scale = Math.min(1, maxSide / Math.max(iw, ih));
@@ -473,7 +470,6 @@ function processQueue(files, pageKey, kind, onAllDone){
             
             loadImage(finalDataURL, function(err3, smallImg){
               if(!err3) {
-                // 每次加载完一张，就塞进数据里并重绘一次，实现渐进式刷新
                 if(kind === 'base') {
                   st.batchBases.push({name:file.name, image:smallImg, dataURL:finalDataURL});
                   if(st.batchBases.length === 1) st.activeBaseIndex = 0; 
@@ -566,7 +562,6 @@ function detectGrids(frameImg) {
   }
 
   if (regions.length > 1) {
-    // 按从上到下、从左到右排序，确保序号对应
     regions.sort(function(a, b){ return a.y - b.y || a.x - b.x; });
     return regions;
   }
@@ -644,7 +639,6 @@ function renderPalette() {
     el.appendChild(d);
   });
   
-  // 自定义颜色按钮
   var customBtn = document.createElement('div');
   customBtn.className = 'color-swatch custom-color';
   customBtn.innerHTML = '🎨';
@@ -925,15 +919,15 @@ function updateTieCanvasSize(){
 }
 function updatePreviewCanvasSize(){
   var c=$('previewCanvasMain'); var st=state.preview;
-  var img = st.baseImage || (st.batchBases[st.activeBaseIndex] && st.batchBases[st.activeBaseIndex].image);
-  if(!img && st.frameImage) img = st.frameImage;
+  // 绝对修复：画布尺寸永远优先跟着“预览框”走，确保底图绝对跑不出去
+  var img = st.frameImage || st.baseImage || (st.batchBases[st.activeBaseIndex] && st.batchBases[st.activeBaseIndex].image);
   var size = calcCanvasSize(img, MAX_RENDER_SIDE);
   if(c.width!==size.width || c.height!==size.height){
     c.width=size.width; c.height=size.height;
     st.manualMask = createManualMask(size.width, size.height);
   }
   st.canvas=size;
-  st.faceMask = img ? buildFaceMask(img, size.width, size.height) : null;
+  st.faceMask = st.baseImage ? buildFaceMask(st.baseImage, size.width, size.height) : null;
 }
 function syncActiveBatchBase(pageKey){
   var st=state[pageKey]; if(!st||!st.batchBases) return;
@@ -963,9 +957,10 @@ function drawPreview(offsetX, offsetY){
   var baseImg = st.baseImage;
   var grids = st.grids || [];
 
-  if (st.frameOnTop) {
-    if (st.frameImage && grids.length > 0 && st.batchBases.length > 0) {
-      // 多宫格核心逻辑：按顺序、等比缩放、居中填入
+  // 修复核心：先判断是否有多宫格和底图，再按需渲染，绝对不丢失
+  if (st.frameImage && grids.length > 0 && st.batchBases.length > 0) {
+    // 如果开启了预览框在上
+    if (st.frameOnTop) {
       grids.forEach(function(cell, i) {
         var item = st.batchBases[i % st.batchBases.length];
         if(!item || !item.image) return;
@@ -974,24 +969,13 @@ function drawPreview(offsetX, offsetY){
         var cy = frameRect.y + cell.y + cell.h / 2;
         
         var iw = img.width, ih = img.height;
-        var sc = Math.min(cell.w / iw, cell.h / ih); // 保证图片完全在格子里
+        var sc = Math.min(cell.w / iw, cell.h / ih); 
         var dw = iw * sc, dh = ih * sc;
         ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
       });
-    } else if (st.frameImage && baseImg) {
-      var iw = baseImg.width, ih = baseImg.height;
-      var sc = Math.min(frameRect.w / iw, frameRect.h / ih);
-      var dw = iw * sc, dh = ih * sc;
-      ctx.drawImage(baseImg, frameRect.x + (frameRect.w - dw)/2, frameRect.y + (frameRect.h - dh)/2, dw, dh);
-    } else if (baseImg) {
-      drawFit(ctx, baseImg, w, h);
-    }
-
-    if (st.frameImage) drawFit(ctx, st.frameImage, w, h);
-  } else {
-    if(st.frameImage) drawFit(ctx, st.frameImage, w, h);
-
-    if (st.frameImage && grids.length > 0 && st.batchBases.length > 0) {
+      drawFit(ctx, st.frameImage, w, h);
+    } else {
+      drawFit(ctx, st.frameImage, w, h);
       grids.forEach(function(cell, i) {
         var item = st.batchBases[i % st.batchBases.length];
         if(!item || !item.image) return;
@@ -1004,13 +988,29 @@ function drawPreview(offsetX, offsetY){
         var dw = iw * sc, dh = ih * sc;
         ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
       });
-    } else if (st.frameImage && baseImg) {
-      var iw = baseImg.width, ih = baseImg.height;
-      var sc = Math.min(frameRect.w / iw, frameRect.h / ih);
-      var dw = iw * sc, dh = ih * sc;
-      ctx.drawImage(baseImg, frameRect.x + (frameRect.w - dw)/2, frameRect.y + (frameRect.h - dh)/2, dw, dh);
-    } else if (baseImg) {
-      drawFit(ctx, baseImg, w, h);
+    }
+  } else {
+    // 普通模式：单张底图
+    if (st.frameOnTop) {
+      if (st.frameImage && baseImg) {
+        var iw = baseImg.width, ih = baseImg.height;
+        var sc = Math.min(frameRect.w / iw, frameRect.h / ih);
+        var dw = iw * sc, dh = ih * sc;
+        ctx.drawImage(baseImg, frameRect.x + (frameRect.w - dw)/2, frameRect.y + (frameRect.h - dh)/2, dw, dh);
+      } else if (baseImg) {
+        drawFit(ctx, baseImg, w, h);
+      }
+      if (st.frameImage) drawFit(ctx, st.frameImage, w, h);
+    } else {
+      if(st.frameImage) drawFit(ctx, st.frameImage, w, h);
+      if (st.frameImage && baseImg) {
+        var iw = baseImg.width, ih = baseImg.height;
+        var sc = Math.min(frameRect.w / iw, frameRect.h / ih);
+        var dw = iw * sc, dh = ih * sc;
+        ctx.drawImage(baseImg, frameRect.x + (frameRect.w - dw)/2, frameRect.y + (frameRect.h - dh)/2, dw, dh);
+      } else if (baseImg) {
+        drawFit(ctx, baseImg, w, h);
+      }
     }
   }
 
