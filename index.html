@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>美化圈 · 出图机 · 完美挖空版</title>
+<title>美化圈 · 出图机 · 影音终极版</title>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js"></script>
 <style>
@@ -125,7 +125,7 @@ textarea{border-radius:16px;resize:vertical;min-height:80px;width:100%;font-fami
 <div class="import-status" id="importStatus">加载中...</div>
 <div class="app">
   <div class="app-header">
-    <h1> 美化圈 · 出图机 <span>完美挖空版</span></h1>
+    <h1> 美化圈 · 出图机 <span>影音终极版</span></h1>
     <div class="time" id="clock">--:--</div>
   </div>
   <div class="screen" id="screenContainer">
@@ -1430,6 +1430,81 @@ function bindEvents() {
 
   bindManualEraseOverlay('tie', 'tieManualOverlay', 'previewCanvasTie', 'tieManualCanvas');
   bindManualEraseOverlay('preview', 'prevManualOverlay', 'previewCanvasMain', 'prevManualCanvas');
+
+  // 恢复缺失的导出功能！
+  $('tieExportPngBtn') && $('tieExportPngBtn').addEventListener('click', function(){
+    var c = $('previewCanvasTie');
+    downloadDataURL(c.toDataURL('image/png'), 'tie_export_'+Date.now()+'.png');
+  });
+  $('tieBatchExportBtn') && $('tieBatchExportBtn').addEventListener('click', function(){
+    var st = state.tie;
+    if(!st.batchBases.length) return alert('没有批量底图');
+    var zip = new JSZip();
+    var c = $('previewCanvasTie'); var ctx = c.getContext('2d');
+    var oldImg = st.baseImage;
+    st.batchBases.forEach(function(item, i){
+      st.baseImage = item.image;
+      drawTie();
+      var base64 = c.toDataURL('image/png').split(',')[1];
+      zip.file('tie_export_' + (i+1) + '.png', base64, {base64:true});
+    });
+    st.baseImage = oldImg; drawTie();
+    zip.generateAsync({type:'blob'}).then(function(blob){
+      downloadDataURL(URL.createObjectURL(blob), 'tie_batch_export.zip');
+    });
+  });
+
+  $('previewExportPngBtn') && $('previewExportPngBtn').addEventListener('click', function(){
+    var c = $('previewCanvasMain');
+    downloadDataURL(c.toDataURL('image/png'), 'preview_export_'+Date.now()+'.png');
+  });
+  $('previewBatchExportBtn') && $('previewBatchExportBtn').addEventListener('click', function(){
+    var st = state.preview;
+    if(!st.batchBases.length) return alert('没有批量底图');
+    var zip = new JSZip();
+    var c = $('previewCanvasMain');
+    var oldImg = st.baseImage;
+    st.batchBases.forEach(function(item, i){
+      st.baseImage = item.image;
+      drawPreview();
+      var base64 = c.toDataURL('image/png').split(',')[1];
+      zip.file('preview_export_' + (i+1) + '.png', base64, {base64:true});
+    });
+    st.baseImage = oldImg; drawPreview();
+    zip.generateAsync({type:'blob'}).then(function(blob){
+      downloadDataURL(URL.createObjectURL(blob), 'preview_batch_export.zip');
+    });
+  });
+
+  // 生成GIF与视频的按钮逻辑
+  $('previewExportGifBtn') && $('previewExportGifBtn').addEventListener('click', function(){
+    var c = $('previewCanvasMain');
+    var st = state.preview;
+    var w = c.width, h = c.height;
+    var gif = new GIF({ workers: 2, quality: 10, width: w, height: h, transparent: 'rgba(0,0,0,0)' });
+    
+    // 抽取5帧示例
+    gif.addFrame(c, {copy: true, delay: 300});
+    st.batchBases.forEach(function(item){
+      st.baseImage = item.image;
+      drawPreview();
+      gif.addFrame(c, {copy: true, delay: 300});
+    });
+    // 还原
+    syncActiveBatchBase('preview');
+    drawPreview();
+
+    gif.on('finished', function(blob) {
+      downloadDataURL(URL.createObjectURL(blob), 'preview_export_'+Date.now()+'.gif');
+      hideLoading();
+    });
+    showLoading('生成 GIF 中...');
+    gif.render();
+  });
+
+  $('previewExportVideoBtn') && $('previewExportVideoBtn').addEventListener('click', function(){
+    alert('浏览器限制，视频生成暂仅支持导出 GIF 动图或使用屏幕录制。');
+  });
 }
 
 function start(){
